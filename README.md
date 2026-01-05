@@ -76,7 +76,7 @@ ollama pull qwen2.5-coder:latest
 ollama serve
 ```
 
-2. Pull a code-optimized model (first time only):
+2. Pull a code-optimised model (first time only):
 ```bash
 ollama pull qwen2.5-coder:latest
 # or
@@ -89,7 +89,7 @@ git add .
 cnc
 ```
 
-The tool will analyze your changes and suggest a commit message!
+The tool will analyse your changes and suggest a commit message!
 
 ### Without AI (Manual Mode)
 
@@ -107,7 +107,7 @@ cnc
 When Ollama is running, `cnc` will:
 
 1. Detect Ollama availability
-2. Analyze your staged changes
+2. Analyse your staged changes
 3. Generate a conventional commit message
 4. Present options:
    - **Accept** - Use the AI suggestion as-is
@@ -246,7 +246,7 @@ This tool generates commits that comply with standard commitlint rules:
 
 1. **Checks Ollama availability** - Pings `http://localhost:11434`
 2. **Gets staged diff** - Runs `git diff --cached`
-3. **Sends to AI** - Prompts the LLM to analyze changes
+3. **Sends to AI** - Prompts the LLM to analyse changes
 4. **Parses response** - Extracts type, scope, description, and breaking change info
 5. **Adds branch reference** - Extracts issue number from branch name
 6. **Validates** - Ensures conventional commit compliance
