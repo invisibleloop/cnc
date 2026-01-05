@@ -1,0 +1,24 @@
+{
+  "name": "cnc",
+  "version": "1.0.0",
+  "description": "Conventional Commit Creator - Interactive CLI tool for crafting perfect conventional commits",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "cnc": "./bin/cnc.js"
+  },
+  "scripts": {
+    "start": "node bin/cnc.js"
+  },
+  "keywords": [
+    "conventional-commits",
+    "git",
+    "commit",
+    "cli"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@clack/prompts": "^0.7.0"
+  }
+}
