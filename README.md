@@ -9,7 +9,8 @@ An interactive CLI tool that helps developers craft perfectly structured [Conven
 - 🎯 **Interactive Prompts** - User-friendly interface for manual commit creation
 - 🔄 **Smart Fallbacks** - Gracefully falls back to manual mode if AI is unavailable
 - 📝 **Commitlint Compatible** - Generates messages that pass commitlint validation
-- 🏷️ **Automatic Branch References** - Extracts issue numbers from branch names (e.g., `feature/ABC-123` → `Refs #ABC-123`)
+- 🏷️ **Flexible Branch References** - Choose where to include branch tags: header, footer, or skip entirely
+- 📦 **Publish-Aware Commit Types** - Filters commit types based on whether you're publishing (e.g., to npm)
 - ✏️ **Edit AI Suggestions** - Review, accept, edit, or regenerate AI-generated commits
 - 🎨 **Beautiful UI** - Clean, intuitive interface powered by @clack/prompts
 
@@ -119,35 +120,51 @@ When Ollama is running, `cnc` will:
 
 When Ollama is unavailable, or if you choose manual mode:
 
-1. Select commit type (feat, fix, docs, etc.)
-2. Enter optional scope
-3. Write a short description
-4. Indicate if it's a breaking change
-5. Add breaking change description (if applicable)
-6. Add optional footer text
+1. Indicate if this commit will be published (filters commit types)
+2. Select commit type (feat, fix, perf for publish; all types otherwise)
+3. Enter optional scope
+4. Write a short description
+5. Indicate if it's a breaking change
+6. Add breaking change description (if applicable)
+7. Add optional footer text
+8. Choose where to include branch reference (if detected)
 
-### Branch Reference Extraction
+### Branch Reference Options
 
 If your branch name follows patterns like:
 - `feature/ABC-123-description`
 - `fix/JIRA-456`
 - `bugfix/TICKET-789`
 
-The tool automatically extracts the reference and adds `Refs #ABC-123` to your commit footer.
+The tool extracts the text after the first `/` (e.g., `ABC-123-description`, `JIRA-456`) and gives you three options:
 
-## Commit Types
+- **Don't include** - Skip the branch reference entirely
+- **In header** - Append to the commit description (e.g., `fix: resolve login bug ABC-123`)
+- **In footer** - Add as a reference in the footer (e.g., `Refs #ABC-123`)
 
-- **feat** - A new feature
-- **fix** - A bug fix
+This flexibility allows you to choose the best placement for your workflow and project conventions.
+
+### Publish-Aware Commit Types
+
+When you indicate that a commit will be published (e.g., to npm), the tool filters commit types to only those that trigger semantic version bumps:
+
+- **feat** - A new feature (triggers minor version bump: 0.X.0)
+- **fix** - A bug fix (triggers patch version bump: 0.0.X)
+- **perf** - Performance improvements (triggers patch version bump: 0.0.X)
+- **Breaking changes** - Any type with `!` or `BREAKING CHANGE:` (triggers major version bump: X.0.0)
+
+For non-publish commits, all conventional commit types are available:
+
 - **docs** - Documentation only changes
 - **style** - Code style changes (formatting, missing semicolons, etc.)
 - **refactor** - Code changes that neither fix a bug nor add a feature
-- **perf** - Performance improvements
 - **test** - Adding or updating tests
 - **build** - Build system or external dependency changes
 - **ci** - CI/CD configuration changes
 - **chore** - Other changes that don't modify src or test files
 - **revert** - Revert a previous commit
+
+This ensures that only version-bumping commits are used when publishing packages.
 
 ## Examples
 
@@ -163,8 +180,6 @@ $ cnc
 │
 │  feat(ollama): add AI-powered commit generation
 │
-│  Refs #123
-│
 └
 
 ◇  What would you like to do?
@@ -172,6 +187,13 @@ $ cnc
 │  ○ Edit
 │  ○ Regenerate
 │  ○ Manual
+
+(selecting Accept)
+
+◇  Where would you like to include the branch reference (ABC-123)?
+│  ● Don't include
+│  ○ In header
+│  ○ In footer
 ```
 
 ### Manual Commit
@@ -180,8 +202,12 @@ $ cnc
 
 ◇  Conventional Commit Creator
 │
+◇  Will this commit be published (e.g., to npm)?
+│  Yes
+│
 ◇  Select commit type:
 │  feat
+│  (only feat, fix, perf shown for publish commits)
 │
 ◇  Commit scope (optional):
 │  parser
@@ -197,6 +223,11 @@ $ cnc
 │
 ◇  Footer (optional):
 │
+│
+◇  Where would you like to include the branch reference (ABC-123)?
+│  ○ Don't include
+│  ○ In header
+│  ● In footer
 │
 ┌  Commit message preview:
 │
@@ -240,17 +271,19 @@ This tool generates commits that comply with standard commitlint rules:
 
 - Subject must be lowercase (automatically enforced)
 - Subject must not end with a period
-- References are automatically added from branch names
+- Branch references can be optionally included when prompted
 
 ## How It Works
 
 1. **Checks Ollama availability** - Pings `http://localhost:11434`
 2. **Gets staged diff** - Runs `git diff --cached`
-3. **Sends to AI** - Prompts the LLM to analyse changes
+3. **Sends to AI** - Prompts the LLM to analyse changes (or uses manual prompts)
 4. **Parses response** - Extracts type, scope, description, and breaking change info
-5. **Adds branch reference** - Extracts issue number from branch name
-6. **Validates** - Ensures conventional commit compliance
+5. **Prompts for branch reference placement** - Extracts branch tag and asks where to include it (header/footer/none)
+6. **Validates** - Ensures conventional commit compliance and header length
 7. **Creates commit** - Executes `git commit` with the message
+
+For manual commits, the tool also asks about publish intent to filter available commit types.
 
 ## Requirements
 
