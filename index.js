@@ -3,7 +3,7 @@
  * Main entry point for the CLI tool
  */
 
-import { runPrompts, confirmCommit, showSuccess, showError, reviewAiSuggestion, editAiSuggestion, showAiGenerating, askIncludeBranchReference } from './lib/prompts.js';
+import { runPrompts, confirmCommit, showSuccess, showError, reviewAiSuggestion, editAiSuggestion, showAiGenerating, askBranchReferencePlacement } from './lib/prompts.js';
 import { buildCommitMessage, validateHeaderLength } from './lib/validator.js';
 import { executeCommit, getBranchReference, getStagedDiff } from './lib/commit.js';
 import { isOllamaAvailable, generateCommitMessage } from './lib/ollama.js';
@@ -81,10 +81,19 @@ async function main() {
     // Ask about adding branch reference
     const branchRef = getBranchReference();
     if (branchRef) {
-      const includeRef = await askIncludeBranchReference(branchRef);
-      if (includeRef) {
+      const placement = await askBranchReferencePlacement(branchRef);
+      if (placement === 'header') {
         commitData.description = `${commitData.description} ${branchRef}`;
+      } else if (placement === 'footer') {
+        // Add to footer with Refs # format
+        const footerRef = `Refs #${branchRef}`;
+        if (commitData.footer) {
+          commitData.footer = `${commitData.footer}\n${footerRef}`;
+        } else {
+          commitData.footer = footerRef;
+        }
       }
+      // If 'none', do nothing
     }
 
     // Validate header length before building
