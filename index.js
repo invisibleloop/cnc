@@ -42,15 +42,6 @@ async function getCommitData() {
         return await runPrompts();
       }
 
-      // Ask about adding branch reference
-      const branchRef = getBranchReference();
-      if (branchRef) {
-        const includeRef = await askIncludeBranchReference(branchRef);
-        if (includeRef) {
-          commitData.description = `${commitData.description} ${branchRef}`;
-        }
-      }
-
       // Validate header length
       const headerValidation = validateHeaderLength(commitData);
       if (!headerValidation.valid) {
