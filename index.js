@@ -3,7 +3,7 @@
  * Main entry point for the CLI tool
  */
 
-import { runPrompts, confirmCommit, showSuccess, showError, reviewAiSuggestion, editAiSuggestion, showAiGenerating } from './lib/prompts.js';
+import { runPrompts, confirmCommit, showSuccess, showError, reviewAiSuggestion, editAiSuggestion, showAiGenerating, askIncludeBranchReference } from './lib/prompts.js';
 import { buildCommitMessage, validateHeaderLength } from './lib/validator.js';
 import { executeCommit, getBranchReference, getStagedDiff } from './lib/commit.js';
 import { isOllamaAvailable, generateCommitMessage } from './lib/ollama.js';
@@ -42,13 +42,13 @@ async function getCommitData() {
         return await runPrompts();
       }
 
-      // Add branch reference
+      // Ask about adding branch reference
       const branchRef = getBranchReference();
       if (branchRef) {
-        const refText = `Refs #${branchRef}`;
-        commitData.footer = commitData.footer
-          ? `${commitData.footer}\n${refText}`
-          : refText;
+        const includeRef = await askIncludeBranchReference(branchRef);
+        if (includeRef) {
+          commitData.description = `${commitData.description} ${branchRef}`;
+        }
       }
 
       // Validate header length
@@ -87,14 +87,12 @@ async function main() {
     // Get commit data (AI or manual)
     const commitData = await getCommitData();
 
-    // If manual mode was used, add branch reference
-    if (!commitData.footer || !commitData.footer.includes('Refs #')) {
-      const branchRef = getBranchReference();
-      if (branchRef) {
-        const refText = `Refs #${branchRef}`;
-        commitData.footer = commitData.footer
-          ? `${commitData.footer}\n${refText}`
-          : refText;
+    // Ask about adding branch reference
+    const branchRef = getBranchReference();
+    if (branchRef) {
+      const includeRef = await askIncludeBranchReference(branchRef);
+      if (includeRef) {
+        commitData.description = `${commitData.description} ${branchRef}`;
       }
     }
 
