@@ -21,11 +21,6 @@ async function getCommitData() {
     // Try AI-generated commit
     const diff = getStagedDiff();
 
-    if (!diff) {
-      p.log.warn('No staged changes found for AI analysis. Using manual mode.');
-      return await runPrompts();
-    }
-
     // Generate commit with AI
     let commitData;
     while (true) {
@@ -74,6 +69,13 @@ async function getCommitData() {
 async function main() {
   try {
     p.intro('Conventional Commit Creator');
+
+    // Check for staged changes first
+    const diff = getStagedDiff();
+    if (!diff) {
+      showError('No changes staged for commit. Use "git add" to stage changes first.');
+      process.exit(1);
+    }
 
     // Get commit data (AI or manual)
     const commitData = await getCommitData();
