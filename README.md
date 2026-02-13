@@ -1,4 +1,4 @@
-# CNC - Conventional Commit Creator
+# CNC - Conventional Commit Creator.
 
 An interactive CLI tool that helps developers craft perfectly structured [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) with optional AI assistance powered by Ollama.
 
@@ -73,11 +73,13 @@ ollama pull qwen2.5-coder:latest
 ### With AI (Recommended)
 
 1. Start Ollama:
+
 ```bash
 ollama serve
 ```
 
 2. Pull a code-optimised model (first time only):
+
 ```bash
 ollama pull qwen2.5-coder:latest
 # or
@@ -85,6 +87,7 @@ ollama pull codellama
 ```
 
 3. Stage your changes and run:
+
 ```bash
 git add .
 cnc
@@ -132,6 +135,7 @@ When Ollama is unavailable, or if you choose manual mode:
 ### Branch Reference Options
 
 If your branch name follows patterns like:
+
 - `feature/ABC-123-description`
 - `fix/JIRA-456`
 - `bugfix/TICKET-789`
@@ -169,6 +173,7 @@ This ensures that only version-bumping commits are used when publishing packages
 ## Examples
 
 ### AI-Generated Commit
+
 ```
 $ cnc
 
@@ -197,6 +202,7 @@ $ cnc
 ```
 
 ### Manual Commit
+
 ```
 $ cnc
 
@@ -253,13 +259,14 @@ Edit `lib/ollama.js` to change the default model:
 
 ```javascript
 const OLLAMA_CONFIG = {
-  baseUrl: 'http://localhost:11434',
-  model: 'your-preferred-model:latest', // Change this
-  timeout: 30000
+  baseUrl: "http://localhost:11434",
+  model: "your-preferred-model:latest", // Change this
+  timeout: 30000,
 };
 ```
 
 Recommended models:
+
 - `qwen2.5-coder:latest` - Excellent for code understanding
 - `codellama:latest` - Good for general code tasks
 - `deepseek-coder:latest` - Great for detailed analysis
@@ -294,21 +301,25 @@ For manual commits, the tool also asks about publish intent to filter available 
 ## Troubleshooting
 
 ### "Ollama not available"
+
 - Make sure Ollama is running: `ollama serve`
 - Check it's accessible: `curl http://localhost:11434/api/tags`
 - Tool will automatically fall back to manual mode
 
 ### "No staged changes found"
+
 - Stage your changes first: `git add .`
 - Or stage specific files: `git add file.js`
 
 ### Commitlint errors
+
 - The tool automatically formats commits for commitlint
 - Ensures lowercase subjects
 - Adds branch references
 - Validates conventional commit structure
 
 ### AI generates invalid JSON
+
 - Try regenerating the commit
 - Switch to a different model
 - Use manual mode as fallback

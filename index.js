@@ -3,17 +3,35 @@
  * Main entry point for the CLI tool
  */
 
-import { runPrompts, confirmCommit, showSuccess, showError, reviewAiSuggestion, editAiSuggestion, showAiGenerating, askBranchReferencePlacement } from './lib/prompts.js';
+import { runPrompts, confirmCommit, showSuccess, showError, reviewAiSuggestion, editAiSuggestion, showAiGenerating, askBranchReferencePlacement, PUBLISHABLE_TYPES } from './lib/prompts.js';
 import { buildCommitMessage, validateHeaderLength } from './lib/validator.js';
 import { executeCommit, getBranchReference, getStagedDiff } from './lib/commit.js';
 import { isOllamaAvailable, generateCommitMessage } from './lib/ollama.js';
 import * as p from '@clack/prompts';
 
 /**
+ * Parses CLI flags from process.argv
+ * -p    commit will be published to npm
+ * -h    include branch reference in header
+ * -ns   do not use scope
+ * @returns {{ publish: boolean, branchInHeader: boolean, noScope: boolean }}
+ */
+function parseFlags() {
+  const args = process.argv.slice(2);
+  return {
+    publish: args.includes('-p'),
+    branchInHeader: args.includes('-h'),
+    noScope: args.includes('-ns')
+  };
+}
+
+/**
  * Gets commit data using AI or manual prompts
+ * @param {Object} flags - CLI flags
+ * @param {string|null} branchRef - Branch reference to be appended if -h flag is set
  * @returns {Promise<Object>} The commit data
  */
-async function getCommitData() {
+async function getCommitData(flags, branchRef) {
   // Check if Ollama is available
   const ollamaReady = await isOllamaAvailable();
 
@@ -34,11 +52,26 @@ async function getCommitData() {
         spinner.stop('AI generation failed.');
         p.log.error(`Failed to generate with AI: ${error.message}`);
         p.log.warn('Falling back to manual mode.');
-        return await runPrompts();
+        return await runPrompts(flags);
       }
 
-      // Validate header length
-      const headerValidation = validateHeaderLength(commitData);
+      // Apply flags to AI-generated data before preview
+      if (flags.noScope) {
+        commitData.scope = '';
+      }
+
+      // If -p flag is set, ensure the AI-chosen type is publishable
+      if (flags.publish && !PUBLISHABLE_TYPES.map(t => t.value).includes(commitData.type)) {
+        p.log.warn(`Flag -p: AI selected non-publishable type "${commitData.type}". Please correct it.`);
+        return await editAiSuggestion(commitData, flags);
+      }
+
+      // Validate header length, accounting for branch ref overhead if -h is set
+      const refOverhead = flags.branchInHeader && branchRef ? ` [${branchRef}]`.length : 0;
+      const headerValidation = validateHeaderLength({
+        ...commitData,
+        description: commitData.description + ' '.repeat(refOverhead)
+      });
       if (!headerValidation.valid) {
         p.log.warn(
           `⚠️  Header is too long: ${headerValidation.length}/${headerValidation.limit} characters.\n` +
@@ -46,28 +79,33 @@ async function getCommitData() {
         );
       }
 
-      // Build message and show to user
-      const message = buildCommitMessage(commitData);
+      // Build message and show to user (include ref in preview if available)
+      const previewData = branchRef
+        ? { ...commitData, description: `${commitData.description} [${branchRef}]` }
+        : commitData;
+      const message = buildCommitMessage(previewData);
       const action = await reviewAiSuggestion(commitData, message);
 
       if (action === 'accept') {
         return commitData;
       } else if (action === 'edit') {
-        return await editAiSuggestion(commitData);
+        return await editAiSuggestion(commitData, flags);
       } else if (action === 'manual') {
-        return await runPrompts();
+        return await runPrompts(flags);
       }
       // If 'regenerate', loop continues
     }
   } else {
     // Ollama not available, use manual prompts
     p.log.info('Ollama not available. Using manual mode.');
-    return await runPrompts();
+    return await runPrompts(flags);
   }
 }
 
 async function main() {
   try {
+    const flags = parseFlags();
+
     p.intro('Conventional Commit Creator');
 
     // Check for staged changes first
@@ -77,15 +115,26 @@ async function main() {
       process.exit(1);
     }
 
-    // Get commit data (AI or manual)
-    const commitData = await getCommitData();
-
-    // Ask about adding branch reference
+    // Resolve branch ref early so header validation can account for it
     const branchRef = getBranchReference();
+
+    // Get commit data (AI or manual)
+    const commitData = await getCommitData(flags, branchRef);
+
+    // Apply flags that affect the final commit data
+    if (flags.noScope) {
+      commitData.scope = undefined;
+    }
+
+    if (flags.branchInHeader && !branchRef) {
+      p.log.warn('Flag -h: no branch reference found. Branch must contain a "/" (e.g. feat/CNC-123).');
+    }
     if (branchRef) {
-      const placement = await askBranchReferencePlacement(branchRef);
+      const placement = flags.branchInHeader
+        ? 'header'
+        : await askBranchReferencePlacement(branchRef);
       if (placement === 'header') {
-        commitData.description = `${commitData.description} ${branchRef}`;
+        commitData.description = `${commitData.description} [${branchRef}]`;
       } else if (placement === 'footer') {
         // Add to footer with Refs # format
         const footerRef = `Refs #${branchRef}`;
