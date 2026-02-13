@@ -55,7 +55,7 @@ async function getCommitData(flags, branchRef) {
         spinner.stop('AI generation failed.');
         p.log.error(`Failed to generate with AI: ${error.message}`);
         p.log.warn('Falling back to manual mode.');
-        return await runPrompts(flags);
+        return { data: await runPrompts(flags), wasEdited: true };
       }
 
       // Apply flags to AI-generated data before preview
@@ -66,7 +66,7 @@ async function getCommitData(flags, branchRef) {
       // If -p flag is set, ensure the AI-chosen type is publishable
       if (flags.publish && !publishableTypeValues.includes(commitData.type)) {
         p.log.warn(`Flag -p: AI selected non-publishable type "${commitData.type}". Please correct it.`);
-        return await editAiSuggestion(commitData, flags);
+        return { data: await editAiSuggestion(commitData, flags), wasEdited: true };
       }
 
       // Validate header length, accounting for branch ref overhead if -h is set
@@ -90,18 +90,18 @@ async function getCommitData(flags, branchRef) {
       const action = await reviewAiSuggestion(commitData, message);
 
       if (action === 'accept') {
-        return commitData;
+        return { data: commitData, wasEdited: false };
       } else if (action === 'edit') {
-        return await editAiSuggestion(commitData, flags);
+        return { data: await editAiSuggestion(commitData, flags), wasEdited: true };
       } else if (action === 'manual') {
-        return await runPrompts(flags);
+        return { data: await runPrompts(flags), wasEdited: true };
       }
       // If 'regenerate', loop continues
     }
   } else {
     // Ollama not available, use manual prompts
     p.log.info('Ollama not available. Using manual mode.');
-    return await runPrompts(flags);
+    return { data: await runPrompts(flags), wasEdited: true };
   }
 }
 
@@ -122,7 +122,7 @@ async function main() {
     const branchRef = getBranchReference();
 
     // Get commit data (AI or manual)
-    const commitData = await getCommitData(flags, branchRef);
+    const { data: commitData, wasEdited } = await getCommitData(flags, branchRef);
 
     // Apply flags that affect the final commit data
     if (flags.noScope) {
@@ -133,7 +133,7 @@ async function main() {
       p.log.warn('Flag -h: no branch reference found. Branch must contain a "/" (e.g. feat/CNC-123).');
     }
     if (branchRef) {
-      const placement = flags.branchInHeader
+      const placement = (flags.branchInHeader && !wasEdited)
         ? 'header'
         : await askBranchReferencePlacement(branchRef);
       if (placement === 'header') {
@@ -159,14 +159,27 @@ async function main() {
       );
     }
 
-    // Build the commit message from the collected data
-    const message = buildCommitMessage(commitData);
+    // Show preview, allow editing, and ask for confirmation
+    let message;
+    while (true) {
+      message = buildCommitMessage(commitData);
+      const action = await confirmCommit(message);
 
-    // Show preview and ask for confirmation
-    const confirmed = await confirmCommit(message);
-
-    if (!confirmed) {
-      process.exit(0);
+      if (action === 'yes') {
+        break;
+      } else if (action === 'edit') {
+        const edited = await editAiSuggestion(commitData, flags);
+        Object.assign(commitData, edited);
+        const headerValidation = validateHeaderLength(commitData);
+        if (!headerValidation.valid) {
+          p.log.warn(
+            `⚠️  Header is too long: ${headerValidation.length}/${headerValidation.limit} characters.\n` +
+            `   Consider shortening the scope or description.`
+          );
+        }
+      } else {
+        process.exit(0);
+      }
     }
 
     // Execute the git commit
