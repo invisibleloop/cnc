@@ -14,14 +14,16 @@ import * as p from '@clack/prompts';
  * -p    commit will be published to npm
  * -h    include branch reference in header
  * -ns   do not use scope
- * @returns {{ publish: boolean, branchInHeader: boolean, noScope: boolean }}
+ * -nai  skip AI generation and use manual prompts
+ * @returns {{ publish: boolean, branchInHeader: boolean, noScope: boolean, noAi: boolean }}
  */
 function parseFlags() {
   const args = process.argv.slice(2);
   return {
     publish: args.includes('-p'),
     branchInHeader: args.includes('-h'),
-    noScope: args.includes('-ns')
+    noScope: args.includes('-ns'),
+    noAi: args.includes('-nai')
   };
 }
 
@@ -32,6 +34,11 @@ function parseFlags() {
  * @returns {Promise<Object>} The commit data
  */
 async function getCommitData(flags, branchRef) {
+  // Skip AI if -nai flag is set
+  if (flags.noAi) {
+    return { data: await runPrompts(flags), wasEdited: true };
+  }
+
   // Check if Ollama is available
   const ollamaReady = await isOllamaAvailable();
 
